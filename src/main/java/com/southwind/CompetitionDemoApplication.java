@@ -8,6 +8,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @MapperScan("com.southwind.mapper")
 public class CompetitionDemoApplication {
 
+    // 启动类
     public static void main(String[] args) {
         SpringApplication.run(CompetitionDemoApplication.class, args);
     }
