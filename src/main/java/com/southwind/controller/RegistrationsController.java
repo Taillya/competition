@@ -185,15 +185,22 @@ public class RegistrationsController {
         return new PageVO(list,resultPage.getSize(),resultPage.getTotal());
     }
 
+    /**
+     * 学生端「我的报名」分页列表，与管理员 /list 相同返回 {@link PageVO}。
+     */
     @GetMapping("/my")
-    public ResultVO myRegistrations(@RequestParam("submitterUserId") String submitterUserId){
+    public PageVO myRegistrations(
+            @RequestParam("submitterUserId") String submitterUserId,
+            @RequestParam(value = "page", defaultValue = "1") Integer page,
+            @RequestParam(value = "size", defaultValue = "5") Integer size) {
+        Page<Registrations> pageModel = new Page<>(page, size);
         QueryWrapper<Registrations> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("submitter_user_id", submitterUserId);
         queryWrapper.orderByDesc("create_time");
-        List<Registrations> records = this.registrationsService.list(queryWrapper);
+        Page<Registrations> resultPage = this.registrationsService.page(pageModel, queryWrapper);
         List<RegistrationsVO> list = new ArrayList<>();
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-        for (Registrations record : records) {
+        for (Registrations record : resultPage.getRecords()) {
             RegistrationsVO vo = new RegistrationsVO();
             BeanUtils.copyProperties(record, vo);
             Track track = this.trackService.getById(record.getTrackId());
@@ -202,7 +209,7 @@ public class RegistrationsController {
             vo.setDate(record.getCreateTime() != null ? sdf.format(record.getCreateTime()) : "");
             list.add(vo);
         }
-        return new ResultVO(200, "查询成功", list);
+        return new PageVO(list, resultPage.getSize(), resultPage.getTotal());
     }
 
     @GetMapping("/members/{registrationId}")

@@ -70,8 +70,11 @@ public class RegistrationStatisticsServiceImpl implements RegistrationStatistics
                         "IFNULL(NULLIF(TRIM(r.province_code), ''), '000000') AS provinceCode, " +
                         "IFNULL(NULLIF(TRIM(r.status), ''), '待审核') AS status, " +
                         "IFNULL(NULLIF(TRIM(t.name), ''), '未知赛项') AS trackName, " +
-                        "DATE_FORMAT(r.create_time, '%Y-%m') AS month " +
-                        "FROM registrations r LEFT JOIN track t ON r.track_id = t.id WHERE 1=1 " + STATS_FILTER_MARKER);
+                        "DATE_FORMAT(r.create_time, '%Y-%m') AS month, " +
+                        "IFNULL(NULLIF(TRIM(c.title), ''), '未命名竞赛') AS competitionTitle, " +
+                        "r.competition_id AS competitionId " +
+                        "FROM registrations r LEFT JOIN track t ON r.track_id = t.id " +
+                        "LEFT JOIN competition c ON r.competition_id = c.id WHERE 1=1 " + STATS_FILTER_MARKER);
     }
 
     @Autowired
