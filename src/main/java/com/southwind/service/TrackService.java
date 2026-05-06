@@ -15,5 +15,7 @@ import java.util.List;
  * @since 2025-03-26
  */
 public interface TrackService extends IService<Track> {
-    public List<TrackVO> trackVOList();
+    List<TrackVO> trackVOList();
+
+    List<TrackVO> listVoByCompetitionId(Integer competitionId);
 }

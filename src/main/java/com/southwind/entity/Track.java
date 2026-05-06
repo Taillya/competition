@@ -23,6 +23,9 @@ import lombok.EqualsAndHashCode;
       @TableId(value = "id", type = IdType.AUTO)
       private Integer id;
 
+    /** 所属竞赛 */
+    private Integer competitionId;
+
     private String name;
 
     private String icon;

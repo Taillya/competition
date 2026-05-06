@@ -1,5 +1,6 @@
 package com.southwind.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.southwind.entity.Tag;
 import com.southwind.entity.Track;
 import com.southwind.mapper.TagMapper;
@@ -33,6 +34,23 @@ public class TrackServiceImpl extends ServiceImpl<TrackMapper, Track> implements
     @Override
     public List<TrackVO> trackVOList() {
         List<Track> trackList = this.trackMapper.selectList(null);
+        List<TrackVO> trackVOList = new ArrayList<>();
+        for (Track track : trackList) {
+            TrackVO trackVO = new TrackVO();
+            BeanUtils.copyProperties(track, trackVO);
+            List<String> tagList = this.tagMapper.getTagsByTrackId(track.getId());
+            String[] tags = tagList.toArray(new String[tagList.size()]);
+            trackVO.setTags(tags);
+            trackVOList.add(trackVO);
+        }
+        return trackVOList;
+    }
+
+    @Override
+    public List<TrackVO> listVoByCompetitionId(Integer competitionId) {
+        QueryWrapper<Track> qw = new QueryWrapper<>();
+        qw.eq("competition_id", competitionId).orderByAsc("id");
+        List<Track> trackList = this.trackMapper.selectList(qw);
         List<TrackVO> trackVOList = new ArrayList<>();
         for (Track track : trackList) {
             TrackVO trackVO = new TrackVO();

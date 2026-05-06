@@ -4,11 +4,13 @@ package com.southwind.controller;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.StringUtils;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.southwind.entity.Competition;
 import com.southwind.entity.RegistrationMember;
 import com.southwind.entity.Registrations;
 import com.southwind.entity.Track;
 import com.southwind.form.RegistrationForm;
 import com.southwind.form.RegistrationMemberForm;
+import com.southwind.service.CompetitionService;
 import com.southwind.service.RegistrationMemberService;
 import com.southwind.service.RegistrationsService;
 import com.southwind.service.TrackService;
@@ -45,6 +47,8 @@ public class RegistrationsController {
     @Autowired
     private TrackService trackService;
     @Autowired
+    private CompetitionService competitionService;
+    @Autowired
     private RegistrationMemberService registrationMemberService;
     @Value("${platform.registration.auto-approve:false}")
     private Boolean defaultAutoApprove;
@@ -54,9 +58,45 @@ public class RegistrationsController {
         return this.autoApproveOverride != null ? this.autoApproveOverride : this.defaultAutoApprove;
     }
 
+    private void fillCompetitionName(RegistrationsVO vo, Registrations record) {
+        Integer cid = record.getCompetitionId();
+        if (cid == null && record.getTrackId() != null) {
+            Track t = this.trackService.getById(record.getTrackId());
+            if (t != null) {
+                cid = t.getCompetitionId();
+            }
+        }
+        if (cid != null) {
+            Competition c = this.competitionService.getById(cid);
+            vo.setCompetitionName(c != null ? c.getTitle() : "未知竞赛");
+        } else {
+            vo.setCompetitionName("-");
+        }
+    }
+
     @PostMapping("/add")
     @Transactional(rollbackFor = Exception.class)
     public Boolean add(@RequestBody RegistrationForm form) {
+        Track track = this.trackService.getById(form.getTrackId());
+        if (track == null) {
+            return false;
+        }
+        Competition competition = this.competitionService.getById(track.getCompetitionId());
+        if (competition == null) {
+            return false;
+        }
+        if (form.getCompetitionId() != null && !form.getCompetitionId().equals(track.getCompetitionId())) {
+            return false;
+        }
+        if (!this.competitionService.isRegistrationOpen(competition)) {
+            return false;
+        }
+        if ("DIRECT".equalsIgnoreCase(competition.getRegistrationEntryMode())) {
+            long trackCount = this.trackService.count(new QueryWrapper<Track>().eq("competition_id", competition.getId()));
+            if (trackCount != 1) {
+                return false;
+            }
+        }
         form.setCreateTime(new Date());
         if (StringUtils.isBlank(form.getStatus())) {
             if (Boolean.TRUE.equals(isAutoApproveEnabled())) {
@@ -77,6 +117,7 @@ public class RegistrationsController {
         if (members == null || members.isEmpty()) {
             return false;
         }
+        form.setCompetitionId(track.getCompetitionId());
         Registrations registrations = new Registrations();
         BeanUtils.copyProperties(form, registrations);
         boolean saved = this.registrationsService.save(registrations);
@@ -121,18 +162,22 @@ public class RegistrationsController {
             @RequestParam("page") Integer page,
             @RequestParam("size") Integer size,
             @RequestParam(value = "keyWord",required = false) String keyWord,
-            @RequestParam(value = "type",required = false) String type
+            @RequestParam(value = "type",required = false) String type,
+            @RequestParam(value = "competitionId", required = false) Integer competitionId
     ){
         Page<Registrations> pageModel = new Page<>(page,size);
         QueryWrapper<Registrations> queryWrapper = new QueryWrapper<>();
         queryWrapper.like(StringUtils.isNotBlank(keyWord),type,keyWord);
+        queryWrapper.eq(competitionId != null, "competition_id", competitionId);
+        queryWrapper.orderByDesc("create_time");
         Page<Registrations> resultPage = this.registrationsService.page(pageModel, queryWrapper);
         List<RegistrationsVO> list = new ArrayList<>();
         for (Registrations record : resultPage.getRecords()) {
             RegistrationsVO vo = new RegistrationsVO();
             BeanUtils.copyProperties(record,vo);
             Track track = this.trackService.getById(record.getTrackId());
-            vo.setTrackName(track.getName());
+            vo.setTrackName(track != null ? track.getName() : "未知赛道");
+            fillCompetitionName(vo, record);
             SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
             vo.setDate(sdf.format(record.getCreateTime()));
             list.add(vo);
@@ -153,6 +198,7 @@ public class RegistrationsController {
             BeanUtils.copyProperties(record, vo);
             Track track = this.trackService.getById(record.getTrackId());
             vo.setTrackName(track != null ? track.getName() : "未知赛道");
+            fillCompetitionName(vo, record);
             vo.setDate(record.getCreateTime() != null ? sdf.format(record.getCreateTime()) : "");
             list.add(vo);
         }

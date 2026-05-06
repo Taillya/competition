@@ -6,5 +6,6 @@ import lombok.Data;
 @Data
 public class RegistrationsVO extends Registrations {
     private String trackName;
+    private String competitionName;
     private String date;
 }

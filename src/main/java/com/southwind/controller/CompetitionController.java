@@ -4,24 +4,18 @@ package com.southwind.controller;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.StringUtils;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.southwind.entity.Certificate;
 import com.southwind.entity.Competition;
-import com.southwind.entity.Notice;
 import com.southwind.service.CompetitionService;
 import com.southwind.util.CommonUtils;
-import com.southwind.vo.CertificateVO;
 import com.southwind.vo.CompetitionVO;
 import com.southwind.vo.PageVO;
+import com.southwind.vo.ResultVO;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.web.bind.annotation.*;
-
-import org.springframework.stereotype.Controller;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 
@@ -40,18 +34,73 @@ public class CompetitionController {
     @Autowired
     private CompetitionService competitionService;
 
+    private void fillRegistrationExtra(Competition competition, CompetitionVO vo) {
+        vo.setParticipants(this.competitionService.countApprovedByCompetition(competition.getId()));
+        vo.setRegistrationPhase(this.competitionService.resolveRegistrationPhase(competition));
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        if (competition.getRegistrationStart() != null) {
+            vo.setRegistrationStart(sdf.format(competition.getRegistrationStart()));
+        }
+        if (competition.getRegistrationEnd() != null) {
+            vo.setRegistrationEnd(sdf.format(competition.getRegistrationEnd()));
+        }
+    }
+
     @GetMapping("/list")
     public List<CompetitionVO> list(){
         List<Competition> list = this.competitionService.list();
-        List<CompetitionVO> voList = new ArrayList<CompetitionVO>();
+        List<CompetitionVO> voList = new ArrayList<>();
+        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd");
         for (Competition competition : list) {
             CompetitionVO vo = new CompetitionVO();
             BeanUtils.copyProperties(competition, vo);
-            SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd");
-            vo.setTime(simpleDateFormat.format(competition.getTime()));
+            if (competition.getTime() != null) {
+                vo.setTime(simpleDateFormat.format(competition.getTime()));
+            }
+            fillRegistrationExtra(competition, vo);
             voList.add(vo);
         }
         return voList;
+    }
+
+    @GetMapping("/detail/{id}")
+    public ResultVO detail(@PathVariable("id") Integer id) {
+        Competition competition = this.competitionService.getById(id);
+        if (competition == null) {
+            return new ResultVO(404, "竞赛不存在", null);
+        }
+        CompetitionVO vo = new CompetitionVO();
+        BeanUtils.copyProperties(competition, vo);
+        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd");
+        if (competition.getTime() != null) {
+            vo.setTime(simpleDateFormat.format(competition.getTime()));
+        }
+        fillRegistrationExtra(competition, vo);
+        return new ResultVO(200, "查询成功", vo);
+    }
+
+    /**
+     * 未带 competitionId 访问报名页时的兜底：优先返回首个开启报名的竞赛。
+     */
+    @GetMapping("/defaultForRegistration")
+    public ResultVO defaultForRegistration() {
+        QueryWrapper<Competition> qw = new QueryWrapper<>();
+        qw.eq("registration_enabled", 1).orderByAsc("id").last("limit 1");
+        Competition competition = this.competitionService.getOne(qw);
+        if (competition == null) {
+            competition = this.competitionService.getById(1);
+        }
+        if (competition == null) {
+            return new ResultVO(404, "暂无竞赛数据", null);
+        }
+        CompetitionVO vo = new CompetitionVO();
+        BeanUtils.copyProperties(competition, vo);
+        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd");
+        if (competition.getTime() != null) {
+            vo.setTime(simpleDateFormat.format(competition.getTime()));
+        }
+        fillRegistrationExtra(competition, vo);
+        return new ResultVO(200, "查询成功", vo);
     }
 
     @GetMapping("/load")
@@ -75,7 +124,10 @@ public class CompetitionController {
             CompetitionVO competitionVO = new CompetitionVO();
             BeanUtils.copyProperties(competition, competitionVO);
             SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd");
-            competitionVO.setTime(simpleDateFormat.format(competition.getTime()));
+            if (competition.getTime() != null) {
+                competitionVO.setTime(simpleDateFormat.format(competition.getTime()));
+            }
+            fillRegistrationExtra(competition, competitionVO);
             switch (competition.getType()){
                 case "tech":
                     competitionVO.setType("科技创新");
@@ -108,10 +160,24 @@ public class CompetitionController {
 
     @PostMapping("/add")
     public Boolean add(@RequestBody Competition competition){
-        competition.setTime(new Date());
-        competition.setStatus("upcoming");
-        competition.setParticipants(0);
-        competition.setIcon(CommonUtils.getIcon(competition.getType()));
+        if (competition.getTime() == null) {
+            competition.setTime(new Date());
+        }
+        if (competition.getStatus() == null) {
+            competition.setStatus("upcoming");
+        }
+        if (competition.getParticipants() == null) {
+            competition.setParticipants(0);
+        }
+        if (competition.getRegistrationEntryMode() == null || competition.getRegistrationEntryMode().isEmpty()) {
+            competition.setRegistrationEntryMode("SELECT_TRACK");
+        }
+        if (competition.getRegistrationEnabled() == null) {
+            competition.setRegistrationEnabled(0);
+        }
+        if (competition.getIcon() == null || competition.getIcon().isEmpty()) {
+            competition.setIcon(CommonUtils.getIcon(competition.getType()));
+        }
         return this.competitionService.save(competition);
     }
 

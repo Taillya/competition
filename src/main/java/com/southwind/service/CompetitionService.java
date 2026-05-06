@@ -13,4 +13,12 @@ import com.baomidou.mybatisplus.extension.service.IService;
  */
 public interface CompetitionService extends IService<Competition> {
 
+    /**
+     * DISABLED | NOT_STARTED | ENDED | OPEN
+     */
+    String resolveRegistrationPhase(Competition competition);
+
+    boolean isRegistrationOpen(Competition competition);
+
+    int countApprovedByCompetition(Integer competitionId);
 }

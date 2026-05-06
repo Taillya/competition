@@ -28,6 +28,9 @@ import lombok.EqualsAndHashCode;
 
     private Integer trackId;
 
+    /** 所属竞赛（与 track.competition_id 一致，便于列表筛选展示） */
+    private Integer competitionId;
+
     private String teamName;
 
     private String name;

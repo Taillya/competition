@@ -10,4 +10,6 @@ import java.util.List;
 @EqualsAndHashCode(callSuper = true)
 public class RegistrationForm extends Registrations {
     private List<RegistrationMemberForm> members;
+    /** 与 track 归属竞赛一致，用于服务端校验 */
+    private Integer competitionId;
 }
