@@ -32,11 +32,21 @@ import lombok.EqualsAndHashCode;
 
     private String name;
 
-    private String studentId;
+    private String idCard;
 
     private String phone;
 
     private String email;
+
+    private String submitterUserId;
+
+    private String provinceCode;
+
+    private String provinceName;
+
+    private String status;
+
+    private Date auditTime;
 
     private Date createTime;
 
